@@ -15,3 +15,41 @@ the result would be a total of 'limit' amount of events that pass the filter.
 For example:
 If the request post data is '{"log_name":"system.log","log_event_count":"5","include_keywords":"Stat"}',
 the result would be to find the last 5 log entries that include key word 'Stat' or min(limit, num_entries_matching_filter).
+
+Master REST Server Design:
+Any server can act as a 'master'. Given an input json of servers to retrieve logs from, a server will attempt to construct 
+the rest data body for each server requested, and dispatch a set of requests to each server for its local logs (and optional filter, 
+aggregate it into a single response, and return a response containing data blobs keyed by hostname.
+
+
+Trade-offs made:
+1. We could add a cache to request routing layer for repeated requests with the same query params, 
+but these logs are most likely already in os page cache on previous lookups. Logs can also be updated
+many times each second so i decided that it may not be worthwhile to add a cache for fresher results.
+
+Notes:
+1. Doesn't handle race conditions when a log file is truncated or modified while the log is being read by the collector application
+2. Assumes that input log files are originally in ascending timestamp order. 
+3. For the master REST calls, results can be large if there are a large number of machines and large limit amounts specified. The
+current design doesnt perform any API pagination to reduce/limit the amount of data per response, but can be a good improvement to add.
+4. Current requests sent to a single host are single-threaded. If there are a large amount of log requests for each host, the system
+definitely won't scale (since it's a Flask app), but usually there will be a WSGI in front of the web app to fork additional processes
+based on the number of concurrent requests.
+
+Install directions:
+Activate virtualenv
+# local editable install of the logcollector package
+pip install -e .
+
+Run app:
+`flask run` in project root dir (logcollector)
+
+Overview of REST API:
+# list current available logs
+curl http://127.0.0.1:5000/list
+
+# get last 5 events from system.log with filter rules to exclude entries with 'Stat' in it while only including logs contains keywords "shawn" and "air"
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"log_name":"system.log","event_limit":"5","exclude_keywords":"Stat","include_keywords":"shawn,air"}' \
+  http://127.0.0.1:5000/query

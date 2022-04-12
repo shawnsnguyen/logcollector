@@ -1,20 +1,9 @@
-############# Problem/Requirements ################
-A customer has asked you for a way to provide on-demand monitoring of various unix-based servers without having to log into each individual machine and opening up the log files found in /var/log. The customer has asked for the ability to issue a REST request to a machine in order to retrieve logs from /var/log on the machine receiving the REST request.
-
--Customer interface is a HTTP REST request
--Customer must be able to query the following:
+############# Log Collector Overview ################
+Allows a user to send REST requests to query the following:
 	-for a specific file in /var/log
 	-last n events of specified file
 	-basic text/keyword filtering of events
--The results returned must be reverse time ordered
--Must not use any pre-built log aggregation systems - this must be custom, purpose-built software.
--Minimize the number of external dependencies in the business logic code path (framework things like HTTP servers, etc are okay)
--Please commit and push code changes as you normally would - your thinking and working style is an important part for us to understand.
 
-Bonus: The customer has a stretch goal for the ability to issue a REST request to one “master” server in order to retrieve logs from a list of machines provided in the request. For this, there’s no requirements for the protocol between the master server and other servers.
-
-
-############# Log Collector Overview ################
 Each server will expose a list of logs available under /var/log via GET hostname:5000/list endpoint
 -Locally the request would scan the current log files under /var/log and return the set of logs available
 -Only supports uncompressed text format logs (e.g. doesnt work on gz/bz2 logs)

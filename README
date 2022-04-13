@@ -1,4 +1,5 @@
 ############# Log Collector Overview ################
+
 Allows a user to send REST requests to query the following:
 	-for a specific file in /var/log
 	-last n events of specified file
@@ -15,12 +16,6 @@ the result would be a total of 'limit' amount of events that pass the filter.
 For example:
 If the request post data is '{"log_name":"system.log","log_event_count":"5","include_keywords":"Stat"}',
 the result would be to find the last 5 log entries that include key word 'Stat' or min(limit, num_entries_matching_filter).
-
-Master REST Server Design:
-Any server can act as a 'master'. Given an input json of servers to retrieve logs from, a server will attempt to construct 
-the rest data body for each server requested, and dispatch a set of requests to each server for its local logs (and optional filter, 
-aggregate it into a single response, and return a response containing data blobs keyed by hostname.
-
 
 Trade-offs made:
 1. We could add a cache to request routing layer for repeated requests with the same query params, 
@@ -44,7 +39,8 @@ pip install -e .
 Run app:
 `flask run` in project root dir (logcollector)
 
-Overview of REST API:
+
+############## Example Requests #############
 # list current available logs
 curl http://127.0.0.1:5000/list
 

@@ -33,19 +33,22 @@ based on the number of concurrent requests.
 
 Install directions:
 Activate virtualenv
-# local editable install of the logcollector package
-pip install -e .
+pip install -r requirements.txt
 
 Run app:
 `flask run` in project root dir (logcollector)
 
 
-############## Example Requests #############
-# list current available logs
-curl http://127.0.0.1:5000/list
+############## Example Responses #############
+(my_env) shnguyen logcollector | logcollector⚡ ⇒ bash tests/test_requests
+List available logs:
+{"log_files":["fsck_apfs_error.log","daily.out","weekly.out","monthly.out","fsck_hfs.log","CDIS.custom","testlog","shutdown_monitor.log","system.log","wifi.log","install.log","fsck_apfs.log"]}
 
-# get last 5 events from system.log with filter rules to exclude entries with 'Stat' in it while only including logs contains keywords "shawn" and "air"
-curl --header "Content-Type: application/json" \
-  --request POST \
-  --data '{"log_name":"system.log","event_limit":"5","exclude_keywords":"Stat","include_keywords":"shawn,air"}' \
-  http://127.0.0.1:5000/query
+
+Get last 5 events from system.log that contains keywords 'Stat' or 'air'
+{"logs":["Apr 12 17:32:01 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 17:12:55 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:55:23 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:43:28 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:40:09 shawns-air login[37258]: DEAD_PROCESS: 37258 ttys006"]}
+
+
+Query for non-existent log file, should expect a 400 and response indicating an err.
+invalid log file
+

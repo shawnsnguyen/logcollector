@@ -44,7 +44,7 @@ Python Version >= (3.8.9)
 Activate your virtualenv. To create one, run `python3 -m venv my_env` and `source my_env/bin/activate`.
 
 `pip install -r requirements.txt`
-This installs flask for the web app server. 
+This installs flask for the web app server and requests for sending http requests. 
 Now we're all set to run the project :).
 
 

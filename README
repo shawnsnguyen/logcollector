@@ -16,6 +16,10 @@ For example:
 If the request post data is '{"log_name":"system.log","log_event_count":"5","include_keywords":"Stat"}',
 the result would be to find the last 5 log entries that include key word 'Stat' or min(limit, num_entries_matching_filter).
 
+For fetching log files across multiple hosts, the web app will internally send the same json request
+body across a list of socket addresses supplied in the json body. The web app uses a fixed size
+thread pool for handling the concurrent log query requests.
+
 Trade-offs made:
 1. We could add a cache to request routing layer for repeated requests with the same query params, 
 but these logs are most likely already in os page cache on previous lookups. Logs can also be updated
@@ -38,12 +42,7 @@ Python Version >= (3.8.9)
 Activate your virtualenv. To create one, run `python3 -m venv my_env` and `source my_env/bin/activate`.
 
 `pip install -r requirements.txt`
-This installs flask for the web app server and aiohttp (for handling dispatching multiple
-requests asynchronously using Python coroutines instead of spawning threads since most of
-the context is spent waiting for a network response). The async feature is used for the
-distributed requests if a client wants to query logs across multiple machines from a single
-server.
-
+This installs flask for the web app server. 
 Now we're all set to run the project :).
 
 
@@ -68,8 +67,8 @@ curl --header "Content-Type: application/json" \
   --data '{"log_name":"system.log", "event_limit":"5", "include_keywords":"ERROR,WARN", "exclude_keywords":"INFO"}'
   http://127.0.0.1:5000/query
 
-4. Query log files across multiple machines specified. Socket addresses are comma separated. A distributed query can be sent to any 
-machine that hosts the web app.
+4. Query log files across multiple machines specified. Socket addresses are comma separated. A distributed query can be sent to any machine that hosts the web app. In this example, we spawn multiple
+web app instances on the same machine but on different ports for testing purposes.
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"socket_addresses":"127.0.0.1:4000,127.0.0.1:4001", "log_name":"system.log", "event_limit":"5", "include_keywords":"INFO,ERROR"}' \

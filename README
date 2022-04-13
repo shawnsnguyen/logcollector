@@ -9,9 +9,11 @@ Each server will expose a list of logs available under /var/log via GET hostname
 -Only supports uncompressed text format logs (e.g. doesnt work on gz/bz2 logs)
 
 When fetching a specific file on a single host:
-1. Server would open a file descriptor to the file if it exists (throwing an error if it doesnt, make sure to handle log rotations)
-2. Skip thru log file until we hit the limit amount of events to return for the given log file. Note that if filters are specified,
-the result would be a total of 'limit' amount of events that pass the filter.
+1. Server would open a file descriptor to the file if it exists (throwing an error if it doesnt)
+2. Search thru log file from tail-end until we hit the limit amount of events to return for the given log file. Note that if filters are specified,
+the result would be a total of 'limit' amount of events that pass the filter. The filter takes
+in a string of comma separated keywords (matching *any* of the keywords passed in, similar to
+an OR search query).
 For example:
 If the request post data is '{"log_name":"system.log","log_event_count":"5","include_keywords":"Stat"}',
 the result would be to find the last 5 log entries that include key word 'Stat' or min(limit, num_entries_matching_filter).
@@ -28,7 +30,7 @@ many times each second so i decided that it may not be worthwhile to add a cache
 Notes:
 1. Doesn't handle race conditions when a log file is truncated or modified while the log is being read by the collector application
 2. Assumes that input log files are originally in ascending timestamp order. 
-3. For the master REST calls, results can be large if there are a large number of machines and large limit amounts specified. The
+3. For the distributed REST calls, results can be large if there are a large number of machines and large limit amounts specified. The
 current design doesnt perform any API pagination to reduce/limit the amount of data per response, but can be a good improvement to add.
 4. Current requests sent to a single host are single-threaded. If there are a large amount of log requests for each host, the system
 definitely won't scale (since it's a Flask app), but a normal prod server would have some WSGI (gunicorn) in front of the web app to fork additional processes based on the number of concurrent requests.
@@ -47,7 +49,8 @@ Now we're all set to run the project :).
 
 
 ############ Running the app #############
-`flask run -h host_name -p port_num` in project root dir (logcollector)
+Activate your virtualenv.
+Run `flask run -h host_name -p port_num` in project root dir (logcollector)
 By default, the flask server will bind to 127.0.0.1:5000 if no host and port is specified.
 
 
@@ -68,7 +71,9 @@ curl --header "Content-Type: application/json" \
   http://127.0.0.1:5000/query
 
 4. Query log files across multiple machines specified. Socket addresses are comma separated. A distributed query can be sent to any machine that hosts the web app. In this example, we spawn multiple
-web app instances on the same machine but on different ports for testing purposes.
+web app instances on the same machine but on different ports for testing purposes. The distributed
+query can be sent to *any* server (master-less). The server receiving the request will perform
+the fan-out query to the rest of the servers specified for the requested log.
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"socket_addresses":"127.0.0.1:4000,127.0.0.1:4001", "log_name":"system.log", "event_limit":"5", "include_keywords":"INFO,ERROR"}' \

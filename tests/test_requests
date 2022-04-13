@@ -1,0 +1,18 @@
+printf "List available logs: \n"
+curl http://127.0.0.1:5000/list
+printf "\n\n"
+
+printf "Get last 5 events from system.log that contains keywords 'Stat' or 'air'\n"
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"log_name":"system.log", "event_limit":"5", "include_keywords":"Stat,air"}' \
+  http://127.0.0.1:5000/query
+printf "\n\n"
+
+printf "Query for non-existent log file, should expect a 400 and response indicating an err.\n"
+# get last 5 events from system.log but filter any logs with 'Stat' in it
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"log_name":"non_existent_log","event_limit":"5"}' \
+  http://127.0.0.1:5000/query
+printf "\n\n"

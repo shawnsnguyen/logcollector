@@ -16,3 +16,10 @@ curl --header "Content-Type: application/json" \
   --data '{"log_name":"non_existent_log","event_limit":"5"}' \
   http://127.0.0.1:5000/query
 printf "\n\n"
+
+printf "Send distributed query:\n"
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"socket_addresses":"127.0.0.1:4000,127.0.0.1:4001", "log_name":"system.log", "event_limit":"5", "include_keywords":"Stat,air"}' \
+  http://127.0.0.1:5000/distributed_query
+printf "\n\n"

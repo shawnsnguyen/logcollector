@@ -1,5 +1,4 @@
 ############# Log Collector Overview ################
-
 Allows a user to send REST requests to query the following:
 	-for a specific file in /var/log
 	-last n events of specified file
@@ -28,15 +27,53 @@ Notes:
 3. For the master REST calls, results can be large if there are a large number of machines and large limit amounts specified. The
 current design doesnt perform any API pagination to reduce/limit the amount of data per response, but can be a good improvement to add.
 4. Current requests sent to a single host are single-threaded. If there are a large amount of log requests for each host, the system
-definitely won't scale (since it's a Flask app), but usually there will be a WSGI in front of the web app to fork additional processes
-based on the number of concurrent requests.
+definitely won't scale (since it's a Flask app), but a normal prod server would have some WSGI (gunicorn) in front of the web app to fork additional processes based on the number of concurrent requests.
 
-Install directions:
-Activate virtualenv
-pip install -r requirements.txt
 
-Run app:
-`flask run` in project root dir (logcollector)
+################## Requirements ##################
+Python Version >= (3.8.9)
+
+
+################## Install directions ##################
+Activate your virtualenv. To create one, run `python3 -m venv my_env` and `source my_env/bin/activate`.
+
+`pip install -r requirements.txt`
+This installs flask for the web app server and aiohttp (for handling dispatching multiple
+requests asynchronously using Python coroutines instead of spawning threads since most of
+the context is spent waiting for a network response). The async feature is used for the
+distributed requests if a client wants to query logs across multiple machines from a single
+server.
+
+Now we're all set to run the project :).
+
+
+############ Running the app #############
+`flask run -h host_name -p port_num` in project root dir (logcollector)
+By default, the flask server will bind to 127.0.0.1:5000 if no host and port is specified.
+
+
+############# REST API Requests ###############
+1. List logs.
+curl http://127.0.0.1:5000/list
+
+2. Query log file from tail-end with a limit of 5 events. 
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"log_name":"system.log", "event_limit":"5"}'
+  http://127.0.0.1:5000/query
+
+3. Filter log results (only supports OR operator for keywords supplied), returning last 5 entries that match the filter. Keywords are comma separated.
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"log_name":"system.log", "event_limit":"5", "include_keywords":"ERROR,WARN", "exclude_keywords":"INFO"}'
+  http://127.0.0.1:5000/query
+
+4. Query log files across multiple machines specified. Socket addresses are comma separated. A distributed query can be sent to any 
+machine that hosts the web app.
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"socket_addresses":"127.0.0.1:4000,127.0.0.1:4001", "log_name":"system.log", "event_limit":"5", "include_keywords":"INFO,ERROR"}' \
+  http://127.0.0.1:5000/distributed_query
 
 
 ############## Example Responses #############
@@ -44,11 +81,8 @@ Run app:
 List available logs:
 {"log_files":["fsck_apfs_error.log","daily.out","weekly.out","monthly.out","fsck_hfs.log","CDIS.custom","testlog","shutdown_monitor.log","system.log","wifi.log","install.log","fsck_apfs.log"]}
 
-
 Get last 5 events from system.log that contains keywords 'Stat' or 'air'
 {"logs":["Apr 12 17:32:01 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 17:12:55 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:55:23 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:43:28 shawns-air syslogd[88]: ASL Sender Statistics","Apr 12 16:40:09 shawns-air login[37258]: DEAD_PROCESS: 37258 ttys006"]}
 
-
-Query for non-existent log file, should expect a 400 and response indicating an err.
-invalid log file
-
+Send distributed query to multiple instances of the web app (results are keyed by endpoint):
+{"http://127.0.0.1:4000/query":{"logs":["Apr 13 15:01:31 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:48:19 shawns-air login[72976]: USER_PROCESS: 72976 ttys002","Apr 13 14:41:33 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:31:04 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:16:31 shawns-air syslogd[88]: ASL Sender Statistics"]},"http://127.0.0.1:4001/query":{"logs":["Apr 13 15:01:31 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:48:19 shawns-air login[72976]: USER_PROCESS: 72976 ttys002","Apr 13 14:41:33 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:31:04 shawns-air syslogd[88]: ASL Sender Statistics","Apr 13 14:16:31 shawns-air syslogd[88]: ASL Sender Statistics"]}}

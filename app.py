@@ -1,38 +1,59 @@
+import json
 import os
+import requests
 
+from concurrent.futures import ThreadPoolExecutor
+from constants import MAX_WORKERS
+from collector import build_log_collector
+from endpoints import build_http_endpoint_req
 from flask import Flask, Response, jsonify, request
-from filter import LogFilter
 from util import list_files
-from collector import Collector
-from constants import LOG_DIR, DEFAULT_LOG_EVENT_COLLECT_COUNT
 
 app = Flask(__name__)
 
 @app.route('/list', methods = ['GET', 'POST'])
 def list():
-    files = list_files(LOG_DIR)
+    files = list_files()
     return jsonify({'log_files': files})
 
 @app.route('/query', methods = ['GET', 'POST'])
 def query():
     req_data = request.get_json()
 
-    # specific log to retrieve
-    log_name = req_data.get('log_name')
+    log_collector = build_log_collector(req_data)
+    log_events, err = log_collector.collect()
 
-    # max number of log entries from end of log file
-    event_limit = int(req_data.get('event_limit') or DEFAULT_LOG_EVENT_COLLECT_COUNT)
-
-    # filters for include/exclude keywords
-    incl_filter = req_data.get('include_keywords')
-    excl_filter = req_data.get('exclude_keywords')
-    log_filter = LogFilter(incl_filter, excl_filter)
-
-    # collector to aggregate and process logs
-    log_collector = Collector(LOG_DIR, log_name, event_limit, log_filter)
-    log_events, err_string = log_collector.collect()
-
-    if err_string:
+    if err:
         # todo: define error type responses in separate class
-        return Response(err_string, status=400)
+        return Response(err, status=400)
     return jsonify({'logs': log_events})
+
+@app.route('/distributed_query', methods = ['GET', 'POST'])
+def distributed_query():
+    req_data = request.get_json()
+    endpoint_path = 'query'
+
+    socket_addresses_str = req_data.get('socket_addresses')
+    if not socket_addresses_str:
+        return Response("missing required hosts key in json data", status=400)
+    socket_addresses = socket_addresses_str.split(',')
+    host_port_pairs = [socket_addr.split(':') for socket_addr in socket_addresses]
+    endpoint_reqs = [build_http_endpoint_req(host, port, endpoint_path, req_data) for host, port in host_port_pairs]
+    res = {endpoint_req.endpoint(): result for endpoint_req, result in parallel_fetch_urls(endpoint_reqs)}
+    return res
+
+# return a tuple containing the original request and fetch result
+def fetch(endpoint_request):
+    return endpoint_request, requests.post(endpoint_request.endpoint(), json=endpoint_request.json_data)
+
+# perform multiple requests concurrently with a fixed set of threads.
+# the more pythonic way to handle this since the bulk of the time is
+# spent waiting for network io is to use an async web framework with
+# coroutines built in...
+def parallel_fetch_urls(endpoint_requests):
+    results = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        for result in executor.map(fetch, endpoint_requests):
+            host, resp = result
+            results.append((host, resp.json()))
+    return results

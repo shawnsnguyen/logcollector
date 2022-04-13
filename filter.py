@@ -1,6 +1,7 @@
 class LogFilter():
+    # note that the incl/excl keywords are *OR* filters (meaning matching any of the supplied keyword)
+    # adding an *AND* filter would need another set of parameters if we need to support that
     def __init__(self, incl_keywords=None, excl_keywords=None):
-        # ensure log line *contains any* keyword included.
         self.incl_keywords = incl_keywords.split(',') if incl_keywords else None
         # ensure log line *doesnt contain any* excluded keywords
         self.excl_keywords = excl_keywords.split(',') if excl_keywords else None
@@ -15,3 +16,11 @@ class LogFilter():
         if self.excl_keywords:
             match &= all(False if excl_keyword in log_line else True for excl_keyword in self.excl_keywords)
         return match
+
+# static builder utility to construct log filter from the request's json data
+def build_log_filter(req_json_data):
+    # filters for include/exclude keywords
+    incl_filter = req_json_data.get('include_keywords')
+    excl_filter = req_json_data.get('exclude_keywords')
+    log_filter = LogFilter(incl_filter, excl_filter)
+    return log_filter

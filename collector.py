@@ -1,4 +1,8 @@
 import os
+import re
+
+from filter import build_log_filter
+from constants import LOG_DIR, LOG_EVENT_COLLECT_COUNT
 
 class Collector():
     def __init__(self, log_dir, log_file, limit, log_filter):
@@ -42,3 +46,17 @@ class Collector():
         cur_lines = [line.decode('utf-8').strip() for line in log_lines]
         processed_lines = [line for line in cur_lines if self.log_filter.filter(line)]
         return processed_lines
+
+# static builder utility to construct log collector from the request's json data
+def build_log_collector(req_json_data):
+    # filters for include/exclude keywords
+    log_filter = build_log_filter(req_json_data)
+
+    # specific log to retrieve
+    log_name = req_json_data.get('log_name')
+    # max number of log entries from end of log file
+    event_limit = int(req_json_data.get('event_limit') or LOG_EVENT_COLLECT_COUNT)
+
+    # collector to aggregate and process logs
+    log_collector = Collector(LOG_DIR, log_name, event_limit, log_filter)
+    return log_collector

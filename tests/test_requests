@@ -17,7 +17,7 @@ curl --header "Content-Type: application/json" \
   http://127.0.0.1:5000/query
 printf "\n\n"
 
-printf "Send distributed query:\n"
+printf "Send distributed query (this assumes you have 3 webapp instances up serving on ports 4000,4001,5000 on 127.0.0.1\n"
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"socket_addresses":"127.0.0.1:4000,127.0.0.1:4001", "log_name":"system.log", "event_limit":"5", "include_keywords":"Stat,air"}' \

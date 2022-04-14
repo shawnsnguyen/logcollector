@@ -36,10 +36,9 @@ def distributed_query():
     socket_addresses_str = req_data.get('socket_addresses')
     if not socket_addresses_str:
         return Response("missing required hosts key in json data", status=400)
-    socket_addresses = socket_addresses_str.split(',')
-    host_port_pairs = [socket_addr.split(':') for socket_addr in socket_addresses]
+    host_port_pairs = [socket_addr.split(':') for socket_addr in socket_addresses_str.split(',')]
     endpoint_reqs = [build_http_endpoint_req(host, port, endpoint_path, req_data) for host, port in host_port_pairs]
-    res = {endpoint_req.endpoint(): result for endpoint_req, result in parallel_fetch_urls(endpoint_reqs)}
+    res = {endpoint_req.endpoint(): json_resp for endpoint_req, json_resp in parallel_fetch_urls(endpoint_reqs)}
     return res
 
 # return a tuple containing the original request and fetch result
@@ -51,9 +50,9 @@ def fetch(endpoint_request):
 # spent waiting for network io is to use an async web framework with
 # coroutines built in...
 def parallel_fetch_urls(endpoint_requests):
-    results = []
+    req_resp_pairs = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for result in executor.map(fetch, endpoint_requests):
-            host, resp = result
-            results.append((host, resp.json()))
-    return results
+            req, resp = result
+            req_resp_pairs.append((req, resp.json()))
+    return req_resp_pairs
